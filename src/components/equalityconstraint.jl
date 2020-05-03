@@ -9,6 +9,8 @@ mutable struct EqualityConstraint{T,N,Nc,Cs} <: AbstractConstraint{T,N}
     s1::SVector{N,T}
     b0::SVector{2,T}
     b1::SVector{2,T}
+    β0::T
+    β1::T
 
     function EqualityConstraint(data...)
         jointdata = Tuple{Joint,Int64,Int64}[]
@@ -37,12 +39,12 @@ mutable struct EqualityConstraint{T,N,Nc,Cs} <: AbstractConstraint{T,N}
         constraints = Tuple(constraints)
         Nc = length(constraints)
 
-        s0 = @SVector zeros(T, N)
-        s1 = @SVector zeros(T, N)
+        s0 = zeros(T, N)
+        s1 = zeros(T, N)
         b0 = zeros(T, 2)
         b1 = zeros(T, 2)
 
-        new{T,N,Nc,typeof(constraints)}(getGlobalID(), constraints, pid, bodyids, s0, s1, b0, b1)
+        new{T,N,Nc,typeof(constraints)}(getGlobalID(), constraints, pid, bodyids, s0, s1, b0, b1,0,0)
     end
 end
 

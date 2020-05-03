@@ -1,4 +1,4 @@
-mutable struct Impact{T} <: Bound{T}
+mutable struct Impact{T,Nc} <: Bound{T,Nc}
     Nx::Adjoint{T,SVector{6,T}}
     offset::SVector{6,T}
 
@@ -14,7 +14,7 @@ mutable struct Impact{T} <: Bound{T}
         Nx = [ainv3;0;0;0]'
         offset = [offset;0;0;0]
 
-        new{T}(Nx, offset), body.id
+        new{T,1}(Nx, offset), body.id
     end
 end
 

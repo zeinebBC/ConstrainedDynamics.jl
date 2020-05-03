@@ -1,8 +1,9 @@
-abstract type Bound{T} end
+abstract type Bound{T,Nc} end
 
 Base.show(io::IO, bound::Bound) = summary(io, bound)
 
-@inline getT(bound::Bound{T}) where T = T
+getT(bound::Bound{T}) where T = T
+getNc(bound::Bound{T,Nc}) where {T,Nc} = Nc
 
 
 @inline g(bound::Bound{T}) where T = zero(T)

@@ -139,12 +139,12 @@ end
 @inline function lineStep!(node::Component, diagonal, scale, mechanism)
     node.s1 = node.s0 - 1 / (2^scale) * mechanism.α * diagonal.Δs
     node.b1 = node.b0 - 1 / (2^scale) * mechanism.α * diagonal.Δb
+    node.β1 = node.β0 - 1 / (2^scale) * mechanism.α * diagonal.Δβ
     return
 end
 
 @inline function lineStep!(ineqc::InequalityConstraint, entry, scale, mechanism)
     ineqc.s1 = ineqc.s0 - 1 / (2^scale) * mechanism.α * entry.Δs
     ineqc.γ1 = ineqc.γ0 - 1 / (2^scale) * mechanism.α * entry.Δγ
-    ineqc.ψ1 = ineqc.ψ0 - 1 / (2^scale) * mechanism.α * entry.Δψ
     return
 end

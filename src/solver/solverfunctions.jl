@@ -130,26 +130,26 @@ end
 @inline function s0tos1!(component::Component)
     component.s1 = component.s0
     component.b1 = component.b0
+    component.β1 = component.β0
     return
 end
 
 @inline function s1tos0!(component::Component)
     component.s0 = component.s1
     component.b0 = component.b1
+    component.β0 = component.β1
     return
 end
 
 @inline function s0tos1!(ineqc::InequalityConstraint)
     ineqc.s1 = ineqc.s0
     ineqc.γ1 = ineqc.γ0
-    ineqc.ψ1 = ineqc.ψ0
     return
 end
 
 @inline function s1tos0!(ineqc::InequalityConstraint)
     ineqc.s0 = ineqc.s1
     ineqc.γ0 = ineqc.γ1
-    ineqc.ψ0 = ineqc.ψ1
     return
 end
 
@@ -169,29 +169,33 @@ function eliminatedSol!(ineqentry::InequalityEntry, diagonal::DiagonalEntry, bod
     μ = mechanism.μ
     No = 2
 
-    φ = g(ineqc, mechanism)
+    ci = g(ineqc, mechanism)
 
-    Nx = ∂g∂pos(ineqc, body, mechanism)
-    Nv = ∂g∂vel(ineqc, body, mechanism)
+    Nx0 = ∂g∂pos(ineqc, body, mechanism)
+    Nv0 = ∂g∂vel(ineqc, body, mechanism)
 
     γ1 = ineqc.γ1
     s1 = ineqc.s1
-    ψ1 = ineqc.ψ1
+    b1 = body.b1
+    β1 = body.β1
+
+    friction = ineqc.constraints[1]
+
+    Xinv = Xinvfc(ineqc, friction, body, Δt)
+    B = Bfc(ineqc,friction,body, Δt)
 
     friction = ineqc.constraints[1]
 
     D = friction.D
     Dv = D*body.s1
-    B = Bfc(ineqc, friction, body, Δt)
     cf = friction.cf
     M = getM(body)
 
     Δv = diagonal.Δs
-    ineqentry.Δγ = γ1 ./ s1 .* φ - μ ./ s1 - γ1 ./ s1 .* (Nv * Δv)
+    diagonal.Δb = 1/2*b1 + B\(Dv*Δt + γ1[2]/β1*b1 - D*Δv*Δt + 1/β1[zeros(2) b1]*Xinv*(Nv0*Δv - (ci - μ./γ1 + 1/(2*β1)*[0;1]*g2(ineqc,friction,body, Δt, No))))
+    ineqentry.Δγ = Xinv*(ci - μ./γ1 + 1/(2*β1)*[0;1]*g2(ineqc,friction,body, Δt, No) - Nv0*Δv + 1/β1*[0;1]*b1'*diagonal.Δb)
     ineqentry.Δs = s1 .- μ ./ γ1 - s1 ./ γ1 .* ineqentry.Δγ
-    ineqentry.Δψ = [1/2*ψ1[1] - 1/2*norm(Dv)^2*1/ψ1[1]*Δt^2 + Dv'*D*1/ψ1[1]*Δv*Δt^2]
-    # Gx missing !!!!
-    diagonal.Δb = (I - inv(B)/(cf*γ1[1]*Δt^2)*ineqentry.Δψ[1])*body.b1 - B\D/M*(dynamics0(body,mechanism) + ∂g∂pos(ineqc, body, mechanism)'*ineqentry.Δγ[1])
+    diagonal.Δβ = 1/2*β1 - 1/2*b1'*b1/β1 + b1'/β1 * diagonal.Δb
 
     return
 end

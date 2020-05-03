@@ -2,8 +2,7 @@ using Rotations
 using Plots: RGBA
 using StaticArrays
 
-!(@isdefined MaximalCoordinateDynamics) && include(joinpath(pwd(), "src", "MaximalCoordinateDynamics.jl"))
-using Main.MaximalCoordinateDynamics
+using ConstrainedDynamics
 
 # Parameters
 joint_axis = [1.0;0.0;0.0]

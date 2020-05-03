@@ -5,6 +5,7 @@ mutable struct DiagonalEntry{T,N,N²} <: Entry{T}
     Dinv::SMatrix{N,N,T,N²}
     Δs::SVector{N,T}
     Δb::SVector{2,T}
+    Δβ::T
 
     function DiagonalEntry{T,N}() where {T,N}
         N² = N^2
@@ -13,7 +14,7 @@ mutable struct DiagonalEntry{T,N,N²} <: Entry{T}
         Δs = @SVector zeros(T, N)
         Δb = @SVector zeros(T, 2)
 
-        new{T,N,N²}(D, Dinv, Δs, Δb)
+        new{T,N,N²}(D, Dinv, Δs, Δb, 0)
     end
 end
 
@@ -32,14 +33,12 @@ end
 mutable struct InequalityEntry{T,N} <: Entry{T}
     Δs::SVector{N,T}
     Δγ::SVector{N,T}
-    Δψ::SVector{N,T}
 
     function InequalityEntry{T,N}() where {T,N}
         Δs = @SVector zeros(T, N)
         Δγ = @SVector zeros(T, N)
-        Δψ = @SVector zeros(T, N)
 
-        new{T,N}(Δs, Δγ, Δψ)
+        new{T,N}(Δs, Δγ)
     end
 end
 

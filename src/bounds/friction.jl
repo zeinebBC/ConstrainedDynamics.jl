@@ -1,8 +1,7 @@
-mutable struct Friction{T} <: Bound{T}
+mutable struct Friction{T,Nc} <: Bound{T,Nc}
     Nx::Adjoint{T,SVector{6,T}}
     D::SMatrix{2,6,T,12}
     cf::T
-    # b::SVector{2,T}
     offset::SVector{6,T}
 
 
@@ -19,14 +18,24 @@ mutable struct Friction{T} <: Bound{T}
         D = [A[:,1:2];zeros(3,2)]'
         offset = [offset;0;0;0]
 
-        new{T}(Nx, D, cf, offset), body.id
+        new{T,2}(Nx, D, cf, offset), body.id
     end
 end
 
 
-@inline function g(friction::Friction, body::Body, Δt, No)
-    friction.Nx[SVector(1, 2, 3)]' * (getx3(body, Δt) - friction.offset[SVector(1, 2, 3)])
+@inline function g(ineqc, friction::Friction, body::Body, Δt, No)
+    γ1 = ineqc.γ1[1]
+    [
+        friction.Nx[SVector(1, 2, 3)]' * (getx3(body, Δt) - friction.offset[SVector(1, 2, 3)])
+        friction.cf * γ1 - body.β1
+    ]
+        body.β1^2 - body.b1'*body.b1
 end
+
+@inline function g2(ineqc, friction::Friction, body::Body, Δt, No)
+    body.β1^2 - body.b1'*body.b1
+end
+
 
 function Bfc(ineqc, friction::Friction, body::Body, Δt)
     D = friction.D
@@ -34,144 +43,62 @@ function Bfc(ineqc, friction::Friction, body::Body, Δt)
     cf = friction.cf
 
     γ1 = ineqc.γ1[1]
-    ψ1 = ineqc.ψ1[1]
+    ψ1 = ineqc.γ1[2]
+    s21 = ineqc.s1[2]
+    b1 = body.b1
+    β1 = body.β1
 
-    D/M*D' + I*ψ1/(cf*γ1*Δt^2)
+    ψ1/β1*(I + (β1-s21)/(β1^2*s21) * b1*b1')
 end
 
-function Yfc(ineqc, friction::Friction, body::Body, Δt)
-    D = friction.D
-    M = getM(body)
+function Xinvfc(ineqc, friction::Friction, body::Body, Δt)
+    γ1 = ineqc.γ1[1]
+    ψ1 = ineqc.γ1[2]
+    s11 = ineqc.s1[1]
+    s21 = ineqc.s1[2]
     cf = friction.cf
 
-    B = Bfc(ineqc, friction, body, Δt)
-
-    γ1 = ineqc.γ1[1]
-    ψ1 = ineqc.ψ1[1]
-
-    D'/B/(cf*γ1*ψ1)*body.b1*body.s1'*D'*D
+    [
+        γ1/s11 0
+        -γ1*ψ1*cf/(s11*s21) ψ1/s21
+    ]
 end
-
-function Xfc(ineqc, friction::Friction, body::Body, Δt)
+function extendeddgdpos(ineqc, friction::Friction{T}, body::Body, Δt) where T
     D = friction.D
-    M = getM(body)
-    cf = friction.cf
+    B = Bfc(ineqc,friction,body, Δt)
 
-    B = Bfc(ineqc, friction, body, Δt)
+    b1 = body.b1
+    β1 = body.β1
 
-    γ1 = ineqc.γ1[1]
-    ψ1 = ineqc.ψ1[1]
-
-    M = getM(body)
-
-    I - D'/B*D/M
+    [friction.Nx' -1/β1*D'/B*b1]
 end
 
-@inline ∂g∂pos(friction::Friction, No) = friction.Nx
-@inline ∂g∂vel(friction::Friction, Δt, No) = friction.Nx * Δt
+@inline ∂g∂pos(friction::Friction{T}, No) where T = [friction.Nx;(@SVector zeros(T,6))']
+@inline ∂g∂vel(friction::Friction{T}, Δt, No) where T = [friction.Nx * Δt;(@SVector zeros(T,6))']
 
 @inline function schurf(ineqc, friction::Friction, i, body::Body, μ, Δt, No, mechanism)
-    φ = g(friction, body, Δt, No)
-    cf = friction.cf
+    ci = g(friction, body, Δt, No)
     D = friction.D
-    M = getM(body)
 
-    γ1 = ineqc.γ1[i]
-    s1 = ineqc.s1[i]
-    ψ1 = ineqc.ψ1[i]
+    γ1 = ineqc.γ1
+    b1 = body.b1
+    β1 = body.β1
+    Dv = D*body.s1
 
-    B = Bfc(ineqc, friction, body, Δt)
-    X = Xfc(ineqc, friction, body, Δt)
-    Y = Yfc(ineqc, friction, body, Δt)
+    Xinv = Xinvfc(ineqc, friction, body, Δt)
+    B = Bfc(ineqc,friction,body, Δt)
+    Nxtext = extendeddgdpos(ineqc, friction, body, Δt)
     
 
-    return -D'/B*D/M*dynamics0(body,mechanism) + 1/2*Y*body.s1 - 1/2*D'/B*ψ1/(cf*γ1*Δt^2)*body.b1 + X*friction.Nx' * (γ1 / s1 * φ - μ / s1)
+    return 1/2*D'*b1 + Nxtext * Xinv * (ci - μ./γ1 + 1/(2*β1)*[0;1]*g2(ineqc,friction,body, Δt, No)) + D'/B*(Dv*Δt + γ1[2]/β1*b1)
 end
 
 @inline function schurD(ineqc, friction::Friction, i, body::Body, Δt)
-    Nx = friction.Nx
-    Nv = Δt * Nx
-
-    γ1 = ineqc.γ1[i]
-    s1 = ineqc.s1[i]
-
-    X = Xfc(ineqc, friction, body, Δt)
-    Y = Yfc(ineqc, friction, body, Δt)
-
-    return Y + X*Nx' * γ1 / s1 * Nv
-end
-
-# Smooth stuff
-@inline function setFrictionForce!(mechanism, ineqc, friction::Friction, i, body::Body)
-    Δt = mechanism.Δt
-    No = mechanism.No
-    M = getM(body)
-    v = body.s1
-    cf = friction.cf
-    γ1 = ineqc.γ1[i]
     D = friction.D
 
-    B = D'*friction.b
-    F = body.F[No] - B[SVector(1,2,3)]
-    τ = body.τ[No] - B[SVector(4,5,6)]
-    setForce!(body,F,τ,No)
+    Xinv = Xinvfc(ineqc, friction, body, Δt)
+    B = Bfc(ineqc,friction,body, Δt)
+    Nxtext = extendeddgdpos(ineqc, friction, body, Δt)
 
-    ψ = Δt*norm(D*v)
-    
-    f = body.f
-    body.s1 = @SVector zeros(6)
-    dyn = D/M*dynamics(body,mechanism)*Δt^2
-    body.s1 = v
-    body.f = f
-    
-    X = D/M*D' * Δt^2 + I*(ψ/(cf*γ1))
-
-    friction.b = X\dyn
-    B = D'*friction.b
-    F += B[SVector(1,2,3)]
-    τ += B[SVector(4,5,6)]
-    setForce!(body,F,τ,No)
-    return
+    return Nxtext * Xinv * ∂g∂vel(friction, Δt, 2) + D'/B*D*Δt
 end
-
-# Prox stuff
-# @inline function setFrictionForce!(mechanism, ineqc, friction::Friction, i, body::Body)
-#     Δt = mechanism.Δt
-#     No = mechanism.No
-#     M = getM(body)
-#     v = body.s1
-#     cf = friction.cf
-#     γ1 = ineqc.γ1[i]
-#     D = friction.D
-
-#     B = D'*friction.b
-#     F = body.F[No] - B[SVector(1,2,3)]
-#     τ = body.τ[No] - B[SVector(4,5,6)]
-#     setForce!(body,F,τ,No)
-
-#     ψ = Δt*norm(D*v)
-    
-#     f = body.f
-#     body.s1 = @SVector zeros(6)
-#     dyn = dynamics(body,mechanism)
-#     # body.s1 = v
-#     # body.f = f
-
-#     friction.b = D*dyn
-#     if norm(friction.b) > cf*γ1
-#         friction.b = friction.b/norm(friction.b)*cf*γ1
-#     end
-
-#     B = D'*friction.b
-#     F += B[SVector(1,2,3)]
-#     τ += B[SVector(4,5,6)]
-#     setForce!(body,F,τ,No)
-
-#     body.s1 = v
-#     body.f = f
-#     # v = M\dynamics(body,mechanism)*Δt
-#     # body.s1 = v
-#     # dynamics(body,mechanism)
-
-#     return
-# end

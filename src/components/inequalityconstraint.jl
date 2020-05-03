@@ -1,4 +1,4 @@
-mutable struct InequalityConstraint{T,N,Cs} <: AbstractConstraint{T,N}
+mutable struct InequalityConstraint{T,N,Nc,Cs} <: AbstractConstraint{T,N}
     id::Int64
 
     constraints::Cs
@@ -9,8 +9,6 @@ mutable struct InequalityConstraint{T,N,Cs} <: AbstractConstraint{T,N}
     s1::SVector{N,T}
     γ0::SVector{N,T}
     γ1::SVector{N,T}
-    ψ0::SVector{N,T}
-    ψ1::SVector{N,T}
     
 
     function InequalityConstraint(data...)
@@ -34,19 +32,17 @@ mutable struct InequalityConstraint{T,N,Cs} <: AbstractConstraint{T,N}
         for set in bounddata
             push!(constraints, set[1])
             @assert set[2] == pid
-            N += 1 # getNc(set[1])
+            N += getNc(set[1])
         end
         constraints = Tuple(constraints)
-        # Nc = length(constraints)
+        Nc = length(constraints)
 
         s0 = ones(T, N)
         s1 = ones(T, N)
         γ0 = ones(T, N)
         γ1 = ones(T, N)
-        ψ0 = 0.001*ones(T, N)
-        ψ1 = 0.001*ones(T, N)
 
-        new{T,N,typeof(constraints)}(getGlobalID(), constraints, pid, s0, s1, γ0, γ1, ψ0, ψ1)
+        new{T,N,Nc,typeof(constraints)}(getGlobalID(), constraints, pid, s0, s1, γ0, γ1)
     end
 end
 
@@ -58,41 +54,31 @@ function resetVars!(ineqc::InequalityConstraint{T,N}) where {T,N}
     ineqc.s1 = @SVector ones(T, N)
     ineqc.γ0 = @SVector ones(T, N)
     ineqc.γ1 = @SVector ones(T, N)
-    # ineqc.ψ0 = @SVector ones(T, N)
-    # ineqc.ψ1 = @SVector ones(T, N)
 
     return 
 end
 
 
-function g(ineqc::InequalityConstraint{T,1}, mechanism) where {T}
+function g(ineqc::InequalityConstraint{T,N,1}, mechanism) where {T,N}
     g(ineqc.constraints[1], getbody(mechanism, ineqc.pid), mechanism.Δt, mechanism.No)
 end
 
-function g2(ineqc::InequalityConstraint{T,1}, mechanism) where {T}
-    body = getbody(mechanism, ineqc.pid)
-    B = Bfc(ineqc, ineqc.constraints[1], body, mechanism.Δt)
-    friction = ineqc.constraints[1]
-    D = friction.D
-    M = getM(body)
-    [
-        B*body.b1 - D/M*dynamics0(body,mechanism)
-        ineqc.ψ1[1]^2 - norm(D*body.s1)^2
-    ]
+function g2(ineqc::InequalityConstraint{T,N,1}, mechanism) where {T,N}
+    g2(ineqc.constraints[1], getbody(mechanism, ineqc.pid), mechanism.Δt, mechanism.No)
 end
 
-@generated function g(ineqc::InequalityConstraint{T,N}, mechanism) where {T,N}
-    vec = [:(g(ineqc.constraints[$i], getbody(mechanism, ineqc.pid), mechanism.Δt, mechanism.No)) for i = 1:N]
+@generated function g(ineqc::InequalityConstraint{T,N,Nc}, mechanism) where {T,N,Nc}
+    vec = [:(g(ineqc.constraints[$i], getbody(mechanism, ineqc.pid), mechanism.Δt, mechanism.No)) for i = 1:Nc]
     :(SVector{N,T}($(vec...)))
 end
 
-function gs(ineqc::InequalityConstraint{T,1}, mechanism) where {T}
+function gs(ineqc::InequalityConstraint{T,N,1}, mechanism) where {T,N}
     g(ineqc.constraints[1], getbody(mechanism, ineqc.pid), mechanism.Δt, mechanism.No) - ineqc.s1[1]
 end
 
-@generated function gs(ineqc::InequalityConstraint{T,N}, mechanism) where {T,N}
-    vec = [:(g(ineqc.constraints[$i], getbody(mechanism, ineqc.pid), mechanism.Δt, mechanism.No) - ineqc.s1[$i]) for i = 1:N]
-    :(SVector{N,T}($(vec...)))
+@generated function gs(ineqc::InequalityConstraint{T,N,Nc}, mechanism) where {T,N,Nc}
+    vec = [:(g(ineqc.constraints[$i], getbody(mechanism, ineqc.pid), mechanism.Δt, mechanism.No)) for i = 1:Nc]
+    :(SVector{N,T}($(vec...)) - ineqc.s1)
 end
 
 function h(ineqc::InequalityConstraint)
@@ -104,37 +90,28 @@ function hμ(ineqc::InequalityConstraint{T}, μ) where T
 end
 
 
-function schurf(ineqc::InequalityConstraint{T,N}, body, mechanism) where {T,N}
+function schurf(ineqc::InequalityConstraint{T,N,Nc}, body, mechanism) where {T,N,Nc}
     val = @SVector zeros(T, 6)
-    for i = 1:N
+    for i = 1:Nc
         val += schurf(ineqc, ineqc.constraints[i], i, body, mechanism.μ, mechanism.Δt, mechanism.No, mechanism)
     end
     return val
 end
 
-function schurD(ineqc::InequalityConstraint{T,N}, body, Δt) where {T,N}
+function schurD(ineqc::InequalityConstraint{T,N,Nc}, body, Δt) where {T,N,Nc}
     val = @SMatrix zeros(T, 6, 6)
-    for i = 1:N
+    for i = 1:Nc
         val += schurD(ineqc, ineqc.constraints[i], i, body, Δt)
     end
     return val
 end
 
-@generated function ∂g∂pos(ineqc::InequalityConstraint{T,N}, body, mechanism) where {T,N}
-    vec = [:(∂g∂pos(ineqc.constraints[$i], mechanism.No)) for i = 1:N]
+@generated function ∂g∂pos(ineqc::InequalityConstraint{T,N,Nc}, body, mechanism) where {T,N,Nc}
+    vec = [:(∂g∂pos(ineqc.constraints[$i], mechanism.No)) for i = 1:Nc]
     :(vcat($(vec...)))
 end
 
-@generated function ∂g∂vel(ineqc::InequalityConstraint{T,N}, body, mechanism) where {T,N}
-    vec = [:(∂g∂vel(ineqc.constraints[$i], mechanism.Δt, mechanism.No)) for i = 1:N]
+@generated function ∂g∂vel(ineqc::InequalityConstraint{T,N,Nc}, body, mechanism) where {T,N,Nc}
+    vec = [:(∂g∂vel(ineqc.constraints[$i], mechanism.Δt, mechanism.No)) for i = 1:Nc]
     :(vcat($(vec...)))
-end
-
-function setFrictionForce!(ineqc::InequalityConstraint{T,N}, mechanism) where {T,N}
-    for i = 1:N
-        constraint = ineqc.constraints[i]
-        if typeof(constraint) <: Friction
-            setFrictionForce!(mechanism, ineqc, constraint, i, getbody(mechanism, ineqc.pid))
-        end
-    end
 end
