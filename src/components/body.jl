@@ -32,14 +32,10 @@ mutable struct Body{T} <: AbstractBody{T}
         s1 = zeros(T, 6)
         f = zeros(T, 6)
 
-<<<<<<< HEAD
         b0 = zeros(T, 2)
         b1 = zeros(T, 2)
 
         new{T}(getGlobalID(), m, J, x, q, F, τ, s0, s1, f, b0, b1, 0, 0)
-=======
-        new{T}(getGlobalID(), name, m, J, x, q, F, τ, s0, s1, f)
->>>>>>> master
     end
 
     function Body(shape::Shape; name::String="")

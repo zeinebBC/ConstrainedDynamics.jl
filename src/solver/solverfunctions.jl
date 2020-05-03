@@ -169,17 +169,10 @@ function eliminatedSol!(mechanism::Mechanism, ineqentry::InequalityEntry, diagon
     μ = mechanism.μ
     No = 2
 
-<<<<<<< HEAD
     ci = g(ineqc, mechanism)
 
     Nx0 = ∂g∂pos(ineqc, body, mechanism)
     Nv0 = ∂g∂vel(ineqc, body, mechanism)
-=======
-    φ = g(mechanism, ineqc)
-
-    Nx = ∂g∂pos(mechanism, ineqc, body)
-    Nv = ∂g∂vel(mechanism, ineqc, body)
->>>>>>> master
 
     γ1 = ineqc.γ1
     s1 = ineqc.s1

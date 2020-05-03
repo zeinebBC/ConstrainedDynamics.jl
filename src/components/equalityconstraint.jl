@@ -45,11 +45,7 @@ mutable struct EqualityConstraint{T,N,Nc,Cs} <: AbstractConstraint{T,N}
         b0 = zeros(T, 2)
         b1 = zeros(T, 2)
 
-<<<<<<< HEAD
-        new{T,N,Nc,typeof(constraints)}(getGlobalID(), constraints, pid, bodyids, s0, s1, b0, b1,0,0)
-=======
         new{T,N,Nc,typeof(constraints)}(getGlobalID(), name, constraints, pid, bodyids, s0, s1)
->>>>>>> master
     end
 end
 
