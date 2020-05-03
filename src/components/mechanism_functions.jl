@@ -112,14 +112,14 @@ end
 @inline function normf(mechanism::Mechanism, ineqc::InequalityConstraint)
     f = gs(mechanism, ineqc)
     d = h(ineqc)
-    d2 = g2(ineqc, mechanism)
+    d2 = g2(mechanism, ineqc)
     return dot(f, f) + dot(d, d) + dot(d2, d2)
 end
 
 @inline function normfμ(mechanism::Mechanism, ineqc::InequalityConstraint)
     f = gs(mechanism, ineqc)
     d = hμ(ineqc, mechanism.μ)
-    d2 = g2(ineqc, mechanism)
+    d2 = g2(mechanism,ineqc)
     return dot(f, f) + dot(d, d) + dot(d2, d2)
 end
 
@@ -201,6 +201,10 @@ function feasibilityStepLength!(mechanism::Mechanism)
     τ = 0.995
     mechanism.α = 1.
 
+    for body in mechanism.bodies
+        feasibilityStepLength!(mechanism, body, getentry(ldu, body.id), τ)
+    end
+
     for ineqc in mechanism.ineqconstraints
         feasibilityStepLength!(mechanism, ineqc, getineqentry(ldu, ineqc.id), τ)
     end
@@ -208,20 +212,27 @@ function feasibilityStepLength!(mechanism::Mechanism)
     return
 end
 
+function feasibilityStepLength!(mechanism, body::Body, diagonal::DiagonalEntry, τ)
+    β1 = body.β1
+    Δβ = diagonal.Δβ
+
+    for i = 1:1
+        αmax = τ * β1 / Δβ
+        (αmax > 0) && (αmax < mechanism.α) && (mechanism.α = αmax)
+    end
+    return
+end
+
 function feasibilityStepLength!(mechanism, ineqc::InequalityConstraint{T,N}, ineqentry::InequalityEntry, τ) where {T,N}
     s1 = ineqc.s1
     γ1 = ineqc.γ1
-    ψ1 = ineqc.ψ1 
     Δs = ineqentry.Δs
     Δγ = ineqentry.Δγ
-    Δψ = ineqentry.Δψ
 
     for i = 1:N
         αmax = τ * s1[i] / Δs[i]
         (αmax > 0) && (αmax < mechanism.α) && (mechanism.α = αmax)
         αmax = τ * γ1[i] / Δγ[i]
-        (αmax > 0) && (αmax < mechanism.α) && (mechanism.α = αmax)
-        αmax = τ * ψ1[i] / Δψ[i]
         (αmax > 0) && (αmax < mechanism.α) && (mechanism.α = αmax)
     end
     return

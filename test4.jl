@@ -36,5 +36,5 @@ setVelocity!(mech,link1,v = [0;2.;0])
 setForce!(mech,link1,F=[0;0.;0.])
 
 
-simulate!(mech,save = true)
-visualize!(mech)
+# simulate!(mech,save = true,debug=true)
+# visualize!(mech)

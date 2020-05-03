@@ -29,7 +29,6 @@ end
         friction.Nx[SVector(1, 2, 3)]' * (getx3(body, Δt) - friction.offset[SVector(1, 2, 3)])
         friction.cf * γ1 - body.β1
     ]
-        body.β1^2 - body.b1'*body.b1
 end
 
 @inline function g2(ineqc, friction::Friction, body::Body, Δt, No)
@@ -77,7 +76,7 @@ end
 @inline ∂g∂vel(friction::Friction{T}, Δt, No) where T = [friction.Nx * Δt;(@SVector zeros(T,6))']
 
 @inline function schurf(ineqc, friction::Friction, i, body::Body, μ, Δt, No, mechanism)
-    ci = g(friction, body, Δt, No)
+    ci = g(ineqc,friction, body, Δt, No)
     D = friction.D
 
     γ1 = ineqc.γ1

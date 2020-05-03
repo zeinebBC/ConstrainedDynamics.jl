@@ -169,10 +169,10 @@ function eliminatedSol!(mechanism::Mechanism, ineqentry::InequalityEntry, diagon
     μ = mechanism.μ
     No = 2
 
-    ci = g(ineqc, mechanism)
+    ci = g(mechanism, ineqc)
 
-    Nx0 = ∂g∂pos(ineqc, body, mechanism)
-    Nv0 = ∂g∂vel(ineqc, body, mechanism)
+    Nx0 = ∂g∂pos(mechanism, ineqc, body)
+    Nv0 = ∂g∂vel(mechanism, ineqc, body)
 
     γ1 = ineqc.γ1
     s1 = ineqc.s1
@@ -192,7 +192,7 @@ function eliminatedSol!(mechanism::Mechanism, ineqentry::InequalityEntry, diagon
     M = getM(body)
 
     Δv = diagonal.Δs
-    diagonal.Δb = 1/2*b1 + B\(Dv*Δt + γ1[2]/β1*b1 - D*Δv*Δt + 1/β1[zeros(2) b1]*Xinv*(Nv0*Δv - (ci - μ./γ1 + 1/(2*β1)*[0;1]*g2(ineqc,friction,body, Δt, No))))
+    diagonal.Δb = 1/2*b1 + B\(Dv*Δt + γ1[2]/β1*b1 - D*Δv*Δt + 1/β1*[zeros(2) b1]*Xinv*(Nv0*Δv - (ci - μ./γ1 + 1/(2*β1)*[0;1]*g2(ineqc,friction,body, Δt, No))))
     ineqentry.Δγ = Xinv*(ci - μ./γ1 + 1/(2*β1)*[0;1]*g2(ineqc,friction,body, Δt, No) - Nv0*Δv + 1/β1*[0;1]*b1'*diagonal.Δb)
     ineqentry.Δs = s1 .- μ ./ γ1 - s1 ./ γ1 .* ineqentry.Δγ
     diagonal.Δβ = 1/2*β1 - 1/2*b1'*b1/β1 + b1'/β1 * diagonal.Δb

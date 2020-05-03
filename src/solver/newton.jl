@@ -40,6 +40,7 @@ function newton!(mechanism::Mechanism{T,Nl}; ε = 1e-10, σ = 0.1, μ = 1.0, new
     Δt = mechanism.Δt
 
     foreach(resetVars!, ineqcs)
+    foreach(resetVars!, bodies)
     mechanism.μ = μ
 
     meritf0 = meritf(mechanism)
