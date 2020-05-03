@@ -1,3 +1,13 @@
+@inline function getVelocityDelta(joint::Translational3, body1::AbstractBody, body2::Body{T}, v::Union{Nothing,SVector{0,T}}) where T
+    Δv = @SVector zeros(T,3)
+    return Δv
+end
+
+@inline function getPositionDelta(joint::Translational3, body1::AbstractBody, body2::Body{T}, x::Union{Nothing,SVector{0,T}}) where T
+    Δx = @SVector zeros(T,3)
+    return Δx
+end
+
 @inline function minimalCoordinates(joint::Translational3, body1::AbstractBody{T}, body2::Body, No) where T
     SVector{0,T}()
 end

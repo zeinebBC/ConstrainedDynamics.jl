@@ -1,3 +1,13 @@
+@inline function getVelocityDelta(joint::Translational1, body1::AbstractBody, body2::Body{T}, v::SVector{2,T}) where T
+    Δv = joint.V12' * v # in body1 frame
+    return Δv
+end
+
+@inline function getPositionDelta(joint::Translational1, body1::AbstractBody, body2::Body{T}, x::SVector{2,T}) where T
+    Δx = joint.V12' * x # in body1 frame
+    return Δx
+end
+
 @inline function setForce!(joint::Translational1, body1::Body, body2::Body{T}, F::SVector{2,T}, No) where T
     q1 = body1.q[No]
     q2 = body2.q[No]

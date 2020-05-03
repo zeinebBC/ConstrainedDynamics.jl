@@ -1,5 +1,6 @@
 mutable struct Body{T} <: AbstractBody{T}
     id::Int64
+    name::String
 
     m::T
     J::SMatrix{3,3,T,9}
@@ -20,7 +21,7 @@ mutable struct Body{T} <: AbstractBody{T}
     β1::T
 
 
-    function Body(m::T, J::AbstractArray{T,2}) where T
+    function Body(m::T, J::AbstractArray{T,2}; name::String="") where T
         x = [zeros(T, 3)]
         q = [Quaternion{T}()]
 
@@ -31,26 +32,37 @@ mutable struct Body{T} <: AbstractBody{T}
         s1 = zeros(T, 6)
         f = zeros(T, 6)
 
+<<<<<<< HEAD
         b0 = zeros(T, 2)
         b1 = zeros(T, 2)
 
         new{T}(getGlobalID(), m, J, x, q, F, τ, s0, s1, f, b0, b1, 0, 0)
+=======
+        new{T}(getGlobalID(), name, m, J, x, q, F, τ, s0, s1, f)
+>>>>>>> master
     end
 
-    function Body(shape::Shape)
-        body = Body(shape.m, shape.J)
+    function Body(shape::Shape; name::String="")
+        body = Body(shape.m, shape.J; name=name)
         push!(shape.bodyids, body.id)
         return body
     end
 
-    Body(m::T, J::SMatrix{3,3,T,9}, x::Vector{SVector{3,T}}, q::Vector{Quaternion{T}}, F::Vector{SVector{3,T}}, τ::Vector{SVector{3,T}}, 
-        s0::SVector{6,T}, s1::SVector{6,T}, f::SVector{6,T}) where T = new{T}(getGlobalID(), m, J, x, q, F, τ, s0, s1, f)
+    # Body(m::T, J::SMatrix{3,3,T,9}, x::Vector{SVector{3,T}}, q::Vector{Quaternion{T}}, F::Vector{SVector{3,T}}, τ::Vector{SVector{3,T}}, 
+    #     s0::SVector{6,T}, s1::SVector{6,T}, f::SVector{6,T}) where T = new{T}(getGlobalID(), m, J, x, q, F, τ, s0, s1, f)
 end
 
 mutable struct Origin{T} <: AbstractBody{T}
     id::Int64
+    name::String
 
-    Origin{T}() where T = new{T}(getGlobalID())
+    Origin{T}(; name::String="") where T = new{T}(getGlobalID(), name)
+
+    function Origin(shape::Shape{T}; name::String="") where T
+        origin = Origin{T}(name=name)
+        push!(shape.bodyids, origin.id)
+        return origin
+    end
 end
 
 function Base.deepcopy(b::Body)
@@ -116,6 +128,7 @@ end
 
 @inline getx3(body::Body, Δt) = getvnew(body) * Δt + body.x[2]
 @inline getq3(body::Body, Δt) = Quaternion(Lmat(body.q[2]) * ωbar(body, Δt))
+#TODO why not simple from s0?
 @inline getv1(body::Body, Δt) = (body.x[2] - body.x[1]) / Δt
 @inline function getω1(body::Body, Δt)
     q1 = body.q[1]
@@ -141,7 +154,7 @@ end
     Δt / 2 * Quaternion(sqrt(4 / Δt^2 - dot(ωnew, ωnew)), ωnew)
 end
 
-@inline function dynamics(body::Body{T}, mechanism) where T
+@inline function dynamics(mechanism, body::Body{T}) where T
     No = mechanism.No
     Δt = mechanism.Δt
 
@@ -158,11 +171,11 @@ end
     body.f = [dynT;dynR]
 
     for cid in connections(mechanism.graph, body.id)
-        GtλTof!(body, geteqconstraint(mechanism, cid), mechanism)
+        GtλTof!(mechanism, body, geteqconstraint(mechanism, cid))
     end
 
     for cid in ineqchildren(mechanism.graph, body.id)
-        NtγTof!(body, getineqconstraint(mechanism, cid), mechanism)
+        NtγTof!(mechanism, body, getineqconstraint(mechanism, cid))
     end
 
     for cid in ineqchildren(mechanism.graph, body.id)

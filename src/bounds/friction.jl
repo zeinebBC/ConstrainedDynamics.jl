@@ -73,11 +73,19 @@ function extendeddgdpos(ineqc, friction::Friction{T}, body::Body, Δt) where T
     [friction.Nx' -1/β1*D'/B*b1]
 end
 
+<<<<<<< HEAD
 @inline ∂g∂pos(friction::Friction{T}, No) where T = [friction.Nx;(@SVector zeros(T,6))']
 @inline ∂g∂vel(friction::Friction{T}, Δt, No) where T = [friction.Nx * Δt;(@SVector zeros(T,6))']
 
 @inline function schurf(ineqc, friction::Friction, i, body::Body, μ, Δt, No, mechanism)
     ci = g(friction, body, Δt, No)
+=======
+# Direct stuff
+@inline function setFrictionForce!(mechanism, ineqc, friction::Friction, i, body::Body)
+    No = mechanism.No
+    cf = friction.cf
+    γ1 = ineqc.γ1[i]
+>>>>>>> master
     D = friction.D
 
     γ1 = ineqc.γ1
@@ -85,6 +93,7 @@ end
     β1 = body.β1
     Dv = D*body.s1
 
+<<<<<<< HEAD
     Xinv = Xinvfc(ineqc, friction, body, Δt)
     B = Bfc(ineqc,friction,body, Δt)
     Nxtext = extendeddgdpos(ineqc, friction, body, Δt)
@@ -102,3 +111,60 @@ end
 
     return Nxtext * Xinv * ∂g∂vel(friction, Δt, 2) + D'/B*D*Δt
 end
+=======
+    f = body.f
+    v = body.s1
+    body.s1 = @SVector zeros(6)
+    dyn = dynamics(mechanism, body)
+    body.s1 = v
+    body.f = f
+
+    b0 = D*dyn
+
+    if norm(b0) > cf*γ1
+        friction.b = b0/norm(b0)*cf*γ1
+    else
+        friction.b = b0
+    end
+
+    B = D'*friction.b
+    F += B[SVector(1,2,3)]
+    τ += B[SVector(4,5,6)]
+    setForce!(body,F,τ,No)
+    
+    return
+end
+
+# # Smooth stuff
+# @inline function setFrictionForce!(mechanism, ineqc, friction::Friction, i, body::Body)
+#     Δt = mechanism.Δt
+#     No = mechanism.No
+#     M = getM(body)
+#     v = body.s1
+#     cf = friction.cf
+#     γ1 = ineqc.γ1[i]
+#     D = friction.D
+
+#     B = D'*friction.b
+#     F = body.F[No] - B[SVector(1,2,3)]
+#     τ = body.τ[No] - B[SVector(4,5,6)]
+#     setForce!(body,F,τ,No)
+
+#     ψ = Δt*norm(D*v)
+    
+#     f = body.f
+#     body.s1 = @SVector zeros(6)
+#     dyn = D/M*dynamics(body,mechanism)*Δt^2
+#     body.s1 = v
+#     body.f = f
+    
+#     X = D/M*D' * Δt^2 + I*(ψ/(cf*γ1))
+
+#     friction.b = X\dyn
+#     B = D'*friction.b
+#     F += B[SVector(1,2,3)]
+#     τ += B[SVector(4,5,6)]
+#     setForce!(body,F,τ,No)
+#     return
+# end
+>>>>>>> master

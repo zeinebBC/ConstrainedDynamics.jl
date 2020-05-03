@@ -1,9 +1,5 @@
-using Rotations
-using Plots: RGBA
-using StaticArrays
+using ConstrainedDynamics
 
-!(@isdefined MaximalCoordinateDynamics) && include(joinpath(pwd(), "src", "MaximalCoordinateDynamics.jl"))
-using Main.MaximalCoordinateDynamics
 
 # Parameters
 ex = [1.;0.;0.]
@@ -37,7 +33,7 @@ shapes = [b1;b2]
 mech = Mechanism(origin, links, constraints, shapes = shapes, g = 0.)
 setPosition!(mech,link1,link2,p1 = vert12,p2 = vert11)
 
-setForce!([nothing;[0.05]],joint1to2,mech)
+setForce!(mech, joint1to2, [nothing;[0.05]])
 
 simulate!(mech,save = true)
 visualize!(mech)

@@ -1,3 +1,15 @@
+@inline function getVelocityDelta(joint::Rotational2, body1::AbstractBody, body2::Body{T}, ω::Union{T,SVector{1,T}}) where T
+    ω = joint.V3' * ω
+    Δω = vrotate(ω, joint.qoff) # in body1 frame
+    return Δω
+end
+
+@inline function getPositionDelta(joint::Rotational2, body1::AbstractBody, body2::Body{T}, θ::Union{T,SVector{1,T}}) where T
+    q = Quaternion(cos(θ/2),(joint.V3*sin(θ/2))...)
+    Δq = joint.qoff * q # in body1 frame
+    return Δq
+end
+
 @inline function setForce!(joint::Rotational2, body1::Body, body2::Body{T}, τ::Union{T,SVector{1,T}}, No) where T
     τ1 = vrotate(joint.V3' * -τ, body1.q[No] * joint.qoff)
     τ2 = -τ1
@@ -14,13 +26,13 @@ end
 
 
 @inline function minimalCoordinates(joint::Rotational2, body1::Origin, body2::Body, No)
-    q2 = body2.q[No]
+    q2 = joint.qoff \ body2.q[No]
     joint.V3 * axis(q2) * angle(q2) 
 end
 
 @inline function minimalCoordinates(joint::Rotational2, body1::Body, body2::Body, No)
-    q1 = body1.q[No] \ body2.q[No]
-    joint.V3 * axis(q1) * angle(q1)
+    q2 = joint.qoff \ (body1.q[No] \ body2.q[No])
+    joint.V3 * axis(q2) * angle(q2)
 end
 
 
