@@ -39,11 +39,15 @@ end
     b=2
     function f()
         if (xb[2]==0) 
-            θ=0
+            xb[3]<0 ? θ=-pi/4 : θ=pi/4
         else
-            m1=(xb[3]*a^2)/(xb[2]*b^2)                                 #Slope of the normal
-            α=atan(m1)                                                 #Angle between normal and the horizontal axis 
-            xb[2]*xb[3]<0 ? θ=(pi/2)+α : θ=-(pi/2)+α                   #Angle between normal and the vertical axis 
+            m1=(xb[3]*a^2)/(xb[2]*b^2)                                 
+            α=atan(m1)                        
+            if xb[3]<0                        
+                xb[2]*xb[3]<0 ? θ=(pi/2)+α : θ=-(pi/2)+α 
+            else
+                xb[2]*xb[3]<0 ? θ=-(pi/2)+α : θ=(pi/2)+α            
+            end       
         end
         return sin(θ/2)
     end
@@ -63,10 +67,10 @@ constraints = [joint_between_origin_and_link1]
 shapes = [box]
 
 
-mech = Mechanism(origin, links, constraints, shapes = shapes)
-setPosition!(origin,link1,p2=[5;6;-2],Δq = UnitQuaternion(RotX(0.1)))
+mech = Mechanism(origin, links, constraints, shapes = shapes,g=-9.81)
+setPosition!(link1,x=[0;-5.0;1.0],q = UnitQuaternion(RotX(-pi/2)))
 
-initializeConstraints!(mech,newtonIter = 200)
+initializeConstraints!(mech,newtonIter = 100)
 
 steps = Base.OneTo(1000)
 storage = Storage{Float64}(steps,1)
